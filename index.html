@@ -101,6 +101,34 @@ html,body{height:100%;background:var(--night);color:var(--cream);font-family:var
 .prac{display:grid;grid-template-columns:1fr 1fr;gap:10px;width:100%}
 .prac .btn{font-size:15px;padding:12px 10px}
 .marks{font-family:var(--mono);font-size:15px;letter-spacing:.02em;color:var(--cream);background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:8px 10px;max-width:100%;overflow-x:auto;white-space:nowrap}
+.sect{width:100%;display:flex;flex-direction:column;gap:10px;text-align:left}
+.sect h2{font-size:11px;font-weight:800;letter-spacing:.2em;color:var(--muted);text-transform:uppercase;display:flex;justify-content:space-between}
+.sect h2 span{letter-spacing:.04em;text-transform:none;font-weight:600}
+.series{display:flex;gap:8px;justify-content:center;font-family:var(--mono);font-size:15px}
+.series span{border:1px solid var(--line);border-radius:8px;padding:6px 10px;background:var(--panel)}
+.series span.on{border-color:var(--neon);color:var(--neon)}
+.rank{font-size:14px;font-weight:700;color:var(--partial);min-height:18px}
+.tabs{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;width:100%}
+.tab{font:inherit;font-size:12px;font-weight:800;color:var(--muted);background:transparent;border:1.5px solid var(--line);border-radius:10px;padding:9px 4px;cursor:pointer;line-height:1.2}
+.tab.on{color:#1a0610;background:var(--neon);border-color:var(--neon)}
+.seg{display:flex;gap:6px;justify-content:center}
+.seg button{font:inherit;font-size:13px;font-weight:700;color:var(--muted);background:transparent;border:none;border-bottom:2px solid transparent;padding:4px 8px;cursor:pointer}
+.seg button.on{color:var(--cream);border-bottom-color:var(--neon)}
+.board{width:100%;display:flex;flex-direction:column;border:1.5px solid var(--line);border-radius:12px;overflow:hidden;background:var(--panel)}
+.row{display:grid;grid-template-columns:34px 1fr auto;gap:2px 10px;align-items:center;padding:10px 12px;border-bottom:1px solid var(--line);text-align:left}
+.row:last-child{border-bottom:none}
+.row .r{font-family:var(--mono);color:var(--muted);font-size:15px}
+.row .nm{font-weight:700;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.row .sc{font-family:var(--mono);font-size:18px;font-variant-numeric:tabular-nums}
+.row .dt{grid-column:2/4;font-family:var(--mono);font-size:11px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.row.me{background:rgba(255,79,123,.12)}
+.row.me .nm::after{content:" (you)";color:var(--neon);font-weight:600}
+.row:nth-child(1) .r{color:#f5c04a}.row:nth-child(2) .r{color:#d8d2c8}.row:nth-child(3) .r{color:#d39a6a}
+.empty{padding:28px 16px;color:var(--muted);font-size:14px;text-align:center}
+.modal{position:fixed;inset:0;background:rgba(0,0,0,.7);display:flex;align-items:center;justify-content:center;padding:20px max(20px,env(safe-area-inset-right,0px)) 20px max(20px,env(safe-area-inset-left,0px));z-index:20}
+.modal .card{background:var(--panel);border:1.5px solid var(--line);border-radius:16px;padding:20px}
+.modal input{font:inherit;font-size:18px;width:100%;padding:12px 14px;border-radius:10px;border:1.5px solid var(--line);background:var(--night);color:var(--cream);text-align:center}
+.modal input:focus{outline:none;border-color:var(--neon)}
 .hidden{display:none!important}
 </style>
 </head>
@@ -128,10 +156,11 @@ html,body{height:100%;background:var(--night);color:var(--cream);font-family:var
       <div><small>SAME FOR</small><span>Every bowler today</span></div>
       <div><small>NEW CHALLENGE</small><span id="homeNext">Midnight ET</span></div>
     </div>
-    <div class="modes">
+    <div class="sect">
+      <h2>Today <span>one try each</span></h2>
       <button class="mode primary" id="gameBtn" type="button">
         <span class="mt">Daily Game</span><span class="go" id="gameGo">Bowl</span>
-        <span class="md">10 frames, regular scoring, out of 300</span>
+        <span class="md">10 frames, regular scoring</span>
         <span class="ms" id="gameStats"></span>
       </button>
       <button class="mode" id="sparesBtn" type="button">
@@ -140,8 +169,21 @@ html,body{height:100%;background:var(--night);color:var(--cream);font-family:var
         <span class="ms" id="sparesStats"></span>
       </button>
     </div>
+    <div class="sect">
+      <h2>This week <span id="weekLeft">resets Monday</span></h2>
+      <button class="mode" id="highBtn" type="button">
+        <span class="mt">High Game</span><span class="go" id="highGo">Bowl</span>
+        <span class="md">Unlimited tries. Your best game counts.</span>
+        <span class="ms" id="highStats"></span>
+      </button>
+      <button class="mode" id="seriesBtn" type="button">
+        <span class="mt">High Series</span><span class="go" id="seriesGo">Bowl</span>
+        <span class="md">3 games in a row. Best total counts.</span>
+        <span class="ms" id="seriesStats"></span>
+      </button>
+    </div>
     <div class="prac">
-      <button class="btn ghost" id="pracGameBtn" type="button">Practice game</button>
+      <button class="btn" id="boardBtn" type="button">Leaderboard</button>
       <button class="btn ghost" id="pracSparesBtn" type="button">Practice spares</button>
     </div>
     <div class="foot">A Welcome To Bowling prototype</div>
@@ -152,15 +194,46 @@ html,body{height:100%;background:var(--night);color:var(--cream);font-family:var
   <div class="card">
     <div class="kicker" id="resKicker">Daily Frame #1</div>
     <div class="big" id="resScore">0</div>
+    <div class="series hidden" id="resSeries"></div>
     <div class="marks" id="resMarks"></div>
     <div class="tiles" id="resTiles"></div>
     <div class="foot" id="resLine"></div>
     <button class="btn" id="shareBtn" type="button">Share my score</button>
+    <div class="rank" id="resRank"></div>
+    <button class="btn hidden" id="nextGameBtn" type="button">Bowl game 2</button>
     <div class="toast" id="toast"></div>
     <div class="stats" id="resStats"></div>
     <div class="foot" id="resNext"></div>
+    <button class="btn ghost" id="resBoardBtn" type="button">Leaderboard</button>
     <button class="btn ghost" id="againBtn" type="button">Practice again</button>
     <button class="btn ghost" id="homeBtn" type="button">Home</button>
+  </div>
+</div>
+
+<div class="screen hidden" id="boardScreen">
+  <div class="card">
+    <div class="kicker">Leaderboard</div>
+    <div class="tabs" id="tabs">
+      <button class="tab on" type="button" data-k="daily_game">Daily<br>Game</button>
+      <button class="tab" type="button" data-k="daily_spares">Spare<br>Challenge</button>
+      <button class="tab" type="button" data-k="high_game">High<br>Game</button>
+      <button class="tab" type="button" data-k="high_series">High<br>Series</button>
+    </div>
+    <div class="seg" id="seg"><button type="button" class="on" data-p="now">Today</button><button type="button" data-p="all">All time</button></div>
+    <div class="board" id="board"><div class="empty">Loading…</div></div>
+    <div class="foot" id="boardMe"></div>
+    <button class="btn ghost" id="nameBtn" type="button">Change my name</button>
+    <button class="btn ghost" id="boardHomeBtn" type="button">Home</button>
+  </div>
+</div>
+
+<div class="modal hidden" id="nameModal">
+  <div class="card">
+    <div class="kicker">Leaderboard name</div>
+    <p class="how">This is how you show up on the leaderboard.</p>
+    <input id="nameInput" type="text" maxlength="20" autocomplete="nickname" placeholder="Your name" aria-label="Your name">
+    <button class="btn" id="nameSave" type="button">Save</button>
+    <button class="btn ghost" id="nameSkip" type="button">Not now</button>
   </div>
 </div>
 
@@ -504,22 +577,24 @@ function rollSound(on){
 // =============== Game flow ===============
 const $ = id => document.getElementById(id);
 // kind: 'game' (10 frames) or 'spares' (spare challenge). mode: 'daily' or 'practice'.
-const game = {kind:'game', mode:'home', phase:'idle', ch:null, rack:null, sim:null, ballX:0, swipe:null, dayKey:null,
+const game = {series:[], kind:'game', mode:'home', phase:'idle', ch:null, rack:null, sim:null, ballX:0, swipe:null, dayKey:null,
               standing:ALL.slice(), fresh:true, frames:[], fi:0, sIdx:0, sRes:[], streakX:0};
 const RESULTS_KEY = 'df2_results';
 function allResults(){ return store.get(RESULTS_KEY, {}); }
 function todayResult(kind){ const d = allResults()[todayKey()]; return d && d[kind]; }
 
-function startRun(kind, mode){
+function startRun(kind, mode, keepSeries){
   audio();
   game.kind = kind; game.mode = mode;
   if(mode === 'daily'){ game.dayKey = todayKey(); game.ch = makeChallenge(dayIndex(game.dayKey) + 1); }
+  else if(mode === 'weekly'){ game.dayKey = todayKey(); game.ch = makeChallenge(50000 + dayIndex(weekStart())); }
   else game.ch = makeChallenge((Math.random()*1e9) | 0);
+  if(!keepSeries) game.series = [];
   game.frames = []; game.fi = 0; game.sIdx = 0; game.sRes = []; game.streakX = 0;
   game.standing = ALL.slice(); game.fresh = true;
   $('home').classList.add('hidden'); $('results').classList.add('hidden');
   $('hud').classList.remove('hidden'); $('hint').classList.remove('hidden');
-  $('sheet').classList.toggle('game', kind === 'game');
+  $('sheet').classList.toggle('game', kind !== 'spares');
   setupShot();
 }
 function startSpot(pins, fresh){
@@ -529,8 +604,8 @@ function startSpot(pins, fresh){
 }
 function setupShot(){
   let pins, title, sub;
-  const lane = `Oil ${game.ch.oilFt} ft${game.mode === 'practice' ? ' · Practice' : ''}`;
-  if(game.kind === 'game'){
+  const lane = `Oil ${game.ch.oilFt} ft${game.mode === 'practice' ? ' · Practice' : ''}${game.kind === 'series' ? ` · Series game ${game.series.length + 1} of 3` : ''}${game.kind === 'high' ? ' · High Game' : ''}`;
+  if(game.kind !== 'spares'){
     pins = game.standing;
     const f = game.frames[game.fi], ball = f ? f.rolls.length + 1 : 1;
     title = game.fresh ? `Frame ${game.fi + 1}` : `Frame ${game.fi + 1} · <em>${leaveName(pins) || 'Spare'}</em>`;
@@ -585,7 +660,7 @@ function gameScore(){ const t = frameTotals(game.frames).filter(v => v !== null)
 
 function updateSheet(){
   let h = '';
-  if(game.kind === 'game'){
+  if(game.kind !== 'spares'){
     const totals = frameTotals(game.frames);
     for(let i = 0; i < 10; i++){
       const f = game.frames[i], m = f ? frameMarks(f) : [];
@@ -631,7 +706,7 @@ function leaveName(left){
 
 function throwBall(tp){
   game.phase = 'roll'; game.swipe = null;
-  const pins = game.kind === 'game' ? game.standing : game.ch.spares[game.sIdx].pins;
+  const pins = game.kind !== 'spares' ? game.standing : game.ch.spares[game.sIdx].pins;
   game.sim = newSim(game.ch, pins, tp);
   $('speed').textContent = `${tp.mph.toFixed(1)} mph`; $('speed').classList.add('on');
   $('hint').classList.add('hidden');
@@ -646,7 +721,7 @@ function finishShot(){
   drawRack(left, before.filter(n => !left.includes(n)));
   game.phase = 'result';
   let next;
-  if(game.kind === 'game') next = gameRoll(k, left, gutter, before);
+  if(game.kind !== 'spares') next = gameRoll(k, left, gutter, before);
   else next = spareRoll(k, left, gutter);
   updateSheet();
   setTimeout(() => { clearBanner(); next(); }, 1600);
@@ -703,26 +778,98 @@ function spareRoll(k, left, gutter){
   return () => { game.sIdx++; if(game.sIdx >= 10) endRun(); else setupShot(); };
 }
 
+function weekStart(){ // Monday of this week, Eastern
+  const k = todayKey(), d = new Date(k + 'T12:00:00Z'), dow = (d.getUTCDay() + 6) % 7;
+  return new Date(d.getTime() - dow*864e5).toISOString().slice(0,10);
+}
+function weekReset(){ const k = todayKey(), dow = (new Date(k + 'T12:00:00Z').getUTCDay() + 6) % 7; const days = 7 - dow; return days === 1 ? 'resets tonight at midnight' : `resets Monday (${days} days)`; }
+
+// ----- online leaderboard -----
+const API = 'https://zyqtdkkqbpwkpfnpzadw.supabase.co/rest/v1', API_KEY = 'sb_publishable_M48CJ1rz-7O-33E9JERkPw_eDMsLVgq';
+const BOARD_KIND = {game:'daily_game', spares:'daily_spares', high:'high_game', series:'high_series'};
+function playerId(){
+  let id = store.get('df_pid', null);
+  if(!id){ id = (crypto.randomUUID ? crypto.randomUUID() : 'xxxxxxxx-xxxx-4xxx-8xxx-xxxxxxxxxxxx'.replace(/x/g, () => (Math.random()*16|0).toString(16))); store.set('df_pid', id); }
+  return id;
+}
+function playerName(){ return store.get('df_name', ''); }
+function periodFor(bk){ return bk.startsWith('daily') ? todayKey() : 'w' + weekStart(); }
+async function api(path, body){
+  const r = await fetch(API + path, {method:'POST', headers:{'apikey':API_KEY, 'Content-Type':'application/json', 'Prefer':'return=minimal'}, body: JSON.stringify(body)});
+  if(!r.ok && r.status !== 409){ throw new Error('HTTP ' + r.status); }
+  const t = await r.text(); return t ? JSON.parse(t) : null;
+}
+function queueScore(item){ const q = store.get('df_pending', []); q.push(item); store.set('df_pending', q); flushScores(); }
+let flushing = false;
+async function flushScores(){
+  if(flushing || !playerName()) return; flushing = true;
+  try{
+    let q = store.get('df_pending', []);
+    while(q.length){
+      const it = q[0];
+      try{ await api('/df_scores', {...it, name: playerName(), player_id: playerId()}); }
+      catch(e){ break; }
+      q.shift(); store.set('df_pending', q);
+    }
+  } finally { flushing = false; }
+}
+async function board(bk, period){ return api('/rpc/df_leaderboard', {p_kind: bk, p_period: period, p_limit: 50}); }
+async function myRank(bk, period){
+  const rows = await board(bk, period), me = playerId();
+  const i = rows.findIndex(r => r.player_id === me); return i < 0 ? null : {rank: i + 1, of: rows.length};
+}
+
+function gameResult(){
+  const marks = game.frames.map(f => { const m = frameMarks(f).map(x => x.t); return (m.length === 1 && m[0] === 'X') ? 'X' : m.join(''); });
+  const tiles = game.frames.map(f => f.rolls[0] === 10 ? '🟩' : (f.rolls[0] + (f.rolls[1] || 0) === 10 ? '🟨' : '⬛')).join('');
+  const strikes = game.frames.reduce((a, f) => a + frameMarks(f).filter(x => x.t === 'X').length, 0);
+  const spares = game.frames.reduce((a, f) => a + frameMarks(f).filter(x => x.t === '/').length, 0);
+  return {score: gameScore(), marks: marks.join(' '), tiles, strikes, spares};
+}
 function endRun(){
   game.phase = 'done'; game.sim = null; updateSheet();
   $('hud').classList.add('hidden'); $('hint').classList.add('hidden'); $('speed').classList.remove('on');
-  let res;
-  if(game.kind === 'game'){
-    const marks = game.frames.map(f => { const m = frameMarks(f).map(x => x.t); return (m.length === 1 && m[0] === 'X') ? 'X' : m.join(''); });
-    const tiles = game.frames.map(f => f.rolls[0] === 10 ? '🟩' : (f.rolls[0] + (f.rolls[1] || 0) === 10 ? '🟨' : '⬛')).join('');
-    const strikes = game.frames.reduce((a, f) => a + frameMarks(f).filter(x => x.t === 'X').length, 0);
-    const spares = game.frames.reduce((a, f) => a + frameMarks(f).filter(x => x.t === '/').length, 0);
-    res = {score: gameScore(), marks: marks.join(' '), tiles, strikes, spares};
-  } else {
+  let res, post = null;
+  if(game.kind === 'spares'){
     const made = game.sRes.filter(r => r.made).length, splits = game.sRes.filter(r => r.made && r.split).length;
     const tiles = game.sRes.map(r => r.made ? '🟩' : (r.down ? '🟨' : '⬛')).join('');
-    res = {score: made, made, splits, tiles, names: game.ch.spares.map(s => s.name)};
+    res = {score: made, made, splits, tiles};
+    if(game.mode === 'daily') post = {score: made, detail: tiles};
+  } else {
+    res = gameResult();
+    if(game.kind === 'series'){
+      game.series.push(res);
+      res = {...res, games: game.series.map(g => g.score), seriesTotal: game.series.reduce((a, g) => a + g.score, 0), done: game.series.length === 3};
+      if(res.done) post = {score: res.seriesTotal, detail: res.games.join(' · ')};
+    } else if(game.mode !== 'practice') post = {score: res.score, detail: res.marks.slice(0, 120)};
   }
-  if(game.mode === 'daily'){
-    const all = allResults(); all[game.dayKey] = all[game.dayKey] || {}; all[game.dayKey][game.kind] = res; store.set(RESULTS_KEY, all);
+  const saveKind = game.kind === 'series' ? (res.done ? 'series' : null) : game.kind;
+  if(saveKind && game.mode !== 'practice'){
+    const all = allResults(), d = todayKey(); all[d] = all[d] || {};
+    const prev = all[d][saveKind];
+    const val = saveKind === 'series' ? {score: res.seriesTotal, games: res.games, tiles: res.tiles} : res;
+    if(saveKind === 'high' || saveKind === 'series'){ if(!prev || val.score > prev.score) all[d][saveKind] = val; }
+    else all[d][saveKind] = val;
+    store.set(RESULTS_KEY, all);
   }
-  showResults(game.kind, res, game.mode !== 'daily');
+  showResults(game.kind, res, game.mode === 'practice');
+  if(post){
+    const bk = BOARD_KIND[game.kind];
+    queueScore({kind: bk, period: periodFor(bk), score: post.score, detail: post.detail});
+    if(!playerName()) askName(() => { flushScores().then(() => showRank(bk)); });
+    else setTimeout(() => showRank(bk), 900);
+  }
 }
+async function showRank(bk){
+  $('resRank').textContent = 'Posting your score…';
+  try{
+    await flushScores();
+    const r = await myRank(bk, periodFor(bk));
+    const when = bk.startsWith('daily') ? 'today' : 'this week';
+    $('resRank').textContent = r ? `You're #${r.rank} of ${r.of} ${when}` : 'Score saved. It will post when you are back online.';
+  }catch(e){ $('resRank').textContent = 'Score saved. It will post when you are back online.'; }
+}
+const KIND_LABEL = {game:'Daily Game', spares:'Spare Challenge', high:'High Game', series:'High Series'};
 function stats(kind){
   const all = allResults(), keys = Object.keys(all).filter(k => all[k][kind]).sort();
   const vals = keys.map(k => all[k][kind].score);
@@ -734,41 +881,69 @@ function stats(kind){
   while(all[d] && all[d][kind]){ streak++; d = prevDay(d); }
   return {played, avg, best, streak};
 }
+function weekBest(kind){
+  const all = allResults(), ws = weekStart(); let best = null;
+  for(const k of Object.keys(all)) if(k >= ws && all[k][kind] && (!best || all[k][kind].score > best.score)) best = all[k][kind];
+  return best;
+}
 function statsHTML(kind){
   const s = stats(kind);
-  return `<div><b>${s.played}</b><small>PLAYED</small></div><div><b>${s.avg}</b><small>AVERAGE</small></div><div><b>${s.best}</b><small>BEST</small></div><div><b>${s.streak}</b><small>STREAK</small></div>`;
+  const avgLabel = (kind === 'high' || kind === 'series') ? 'DAILY BEST AVG' : 'AVERAGE';
+  return `<div><b>${s.played}</b><small>DAYS</small></div><div><b>${s.avg}</b><small>${avgLabel}</small></div><div><b>${s.best}</b><small>BEST</small></div><div><b>${s.streak}</b><small>STREAK</small></div>`;
 }
 let lastShare = '', resKind = 'game';
 function showResults(kind, r, practice){
   resKind = kind;
   const num = dayIndex(game.dayKey || todayKey()) + 1;
-  const label = kind === 'game' ? 'Daily Game' : 'Spare Challenge';
-  $('resKicker').textContent = practice ? `Practice ${kind === 'game' ? 'game' : 'spares'}` : `${label} #${num}`;
-  if(kind === 'game'){
-    $('resScore').innerHTML = `${r.score}`;
-    $('resMarks').textContent = r.marks; $('resMarks').classList.remove('hidden');
-    $('resLine').textContent = `${r.strikes} strikes · ${r.spares} spares`;
-    lastShare = `🎳 Daily Frame #${num} · Game: ${r.score}\n${r.tiles}\n${r.marks}\n${SITE}`;
-  } else {
+  $('resRank').textContent = ''; $('nextGameBtn').classList.add('hidden'); $('resSeries').classList.add('hidden');
+  $('resKicker').textContent = practice ? `Practice ${kind === 'spares' ? 'spares' : 'game'}` : (kind === 'game' || kind === 'spares' ? `${KIND_LABEL[kind]} #${num}` : `${KIND_LABEL[kind]} · this week`);
+  if(kind === 'spares'){
     $('resScore').innerHTML = `${r.made}<small> / 10</small>`;
     $('resMarks').classList.add('hidden');
     $('resLine').textContent = `spares made${r.splits ? ` · ${r.splits} split${r.splits > 1 ? 's' : ''} picked up` : ''}`;
     lastShare = `🎳 Daily Frame #${num} · Spares: ${r.made}/10\n${r.tiles}\n${SITE}`;
+  } else {
+    $('resMarks').textContent = r.marks; $('resMarks').classList.remove('hidden');
+    $('resLine').textContent = `${r.strikes} strikes · ${r.spares} spares`;
+    if(kind === 'series'){
+      const g = r.games;
+      $('resSeries').innerHTML = [0,1,2].map(i => `<span class="${i === g.length - 1 ? 'on' : ''}">G${i+1} ${g[i] !== undefined ? g[i] : '—'}</span>`).join('');
+      $('resSeries').classList.remove('hidden');
+      if(r.done){
+        $('resScore').innerHTML = `${r.seriesTotal}<small> series</small>`;
+        lastShare = `🎳 Daily Frame · High Series: ${r.seriesTotal} (${g.join(' · ')})\n${SITE}`;
+      } else {
+        $('resScore').innerHTML = `${r.score}<small> game ${g.length}</small>`;
+        $('nextGameBtn').textContent = `Bowl game ${g.length + 1}`; $('nextGameBtn').classList.remove('hidden');
+      }
+    } else {
+      $('resScore').innerHTML = `${r.score}`;
+      lastShare = kind === 'high' ? `🎳 Daily Frame · High Game: ${r.score}\n${r.tiles}\n${r.marks}\n${SITE}` : `🎳 Daily Frame #${num} · Game: ${r.score}\n${r.tiles}\n${r.marks}\n${SITE}`;
+    }
   }
-  $('resTiles').textContent = r.tiles;
-  $('resStats').innerHTML = statsHTML(kind);
-  $('resStats').classList.toggle('hidden', false);
-  $('resNext').textContent = practice ? '' : `Next challenge in ${untilMidnight()} (midnight Eastern)`;
-  $('shareBtn').classList.toggle('hidden', practice);
-  $('againBtn').textContent = kind === 'game' ? 'Practice game' : 'Practice spares';
+  $('resTiles').textContent = r.tiles || '';
+  const showStats = !practice && !(kind === 'series' && !r.done);
+  $('resStats').innerHTML = showStats ? statsHTML(kind) : ''; $('resStats').classList.toggle('hidden', !showStats);
+  $('resNext').textContent = practice ? '' : (kind === 'game' || kind === 'spares') ? `Next challenge in ${untilMidnight()} (midnight Eastern)` : (kind === 'series' && !r.done ? '' : `Weekly board ${weekReset()}`);
+  $('shareBtn').classList.toggle('hidden', practice || (kind === 'series' && !r.done));
+  $('resBoardBtn').classList.toggle('hidden', practice || (kind === 'series' && !r.done));
+  $('againBtn').textContent = kind === 'spares' ? 'Practice spares' : kind === 'high' ? 'Bowl another game' : kind === 'series' ? 'Bowl another series' : 'Practice game';
+  $('againBtn').classList.toggle('hidden', kind === 'series' && !r.done);
   $('toast').textContent = '';
   $('results').classList.remove('hidden');
 }
 function modeStatus(kind){
-  const done = todayResult(kind), s = stats(kind);
-  $(kind + 'Go').textContent = done ? (kind === 'game' ? `${done.score}` : `${done.made}/10`) : (kind === 'game' ? 'Bowl' : 'Shoot');
-  $(kind + 'Go').classList.toggle('done', !!done);
-  $(kind + 'Stats').textContent = s.played ? `Avg ${s.avg} · Best ${s.best} · Streak ${s.streak}` : 'Not played yet';
+  const go = $(kind + 'Go'), st = $(kind + 'Stats');
+  if(kind === 'game' || kind === 'spares'){
+    const done = todayResult(kind), s = stats(kind);
+    go.textContent = done ? (kind === 'game' ? `${done.score}` : `${done.made}/10`) : (kind === 'game' ? 'Bowl' : 'Shoot');
+    go.classList.toggle('done', !!done);
+    st.textContent = s.played ? `Avg ${s.avg} · Best ${s.best} · Streak ${s.streak}` : 'Not played yet';
+  } else {
+    const wb = weekBest(kind);
+    go.textContent = 'Bowl'; go.classList.remove('done');
+    st.textContent = wb ? `Your best this week: ${wb.score}${kind === 'series' && wb.games ? ` (${wb.games.join(' · ')})` : ''}` : 'No score this week yet';
+  }
 }
 function showHome(){
   game.mode = 'home'; game.phase = 'idle'; game.sim = null;
@@ -778,20 +953,75 @@ function showHome(){
   $('homeOil').textContent = `${ch.oilFt} ft`;
   $('homeCond').textContent = ch.cond;
   $('homeNext').textContent = `in ${untilMidnight()}`;
-  modeStatus('game'); modeStatus('spares');
-  $('hud').classList.add('hidden'); $('hint').classList.add('hidden'); $('results').classList.add('hidden');
+  $('weekLeft').textContent = weekReset();
+  ['game','spares','high','series'].forEach(modeStatus);
+  ['hud','hint','results','boardScreen'].forEach(id => $(id).classList.add('hidden'));
   $('home').classList.remove('hidden');
+  flushScores();
 }
 function openDaily(kind){
   const done = todayResult(kind);
   if(done){ game.dayKey = todayKey(); $('home').classList.add('hidden'); showResults(kind, done, false); }
   else startRun(kind, 'daily');
 }
+
+// ----- leaderboard screen -----
+let boardKind = 'daily_game', boardPeriod = 'now';
+async function showBoard(kind){
+  if(kind) boardKind = kind;
+  ['home','results','hud','hint'].forEach(id => $(id).classList.add('hidden'));
+  $('boardScreen').classList.remove('hidden');
+  document.querySelectorAll('#tabs .tab').forEach(t => t.classList.toggle('on', t.dataset.k === boardKind));
+  const daily = boardKind.startsWith('daily');
+  $('seg').children[0].textContent = daily ? 'Today' : 'This week';
+  document.querySelectorAll('#seg button').forEach(b => b.classList.toggle('on', b.dataset.p === boardPeriod));
+  $('boardMe').textContent = playerName() ? `You're playing as ${playerName()}` : 'Set your name to show up on the board';
+  $('nameBtn').textContent = playerName() ? 'Change my name' : 'Set my name';
+  const el = $('board'); el.innerHTML = '<div class="empty">Loading…</div>';
+  const reqKind = boardKind, reqPeriod = boardPeriod;
+  try{
+    await flushScores();
+    const rows = await board(reqKind, reqPeriod === 'all' ? null : periodFor(reqKind));
+    if(reqKind !== boardKind || reqPeriod !== boardPeriod) return;
+    if(!rows.length){ el.innerHTML = `<div class="empty">No scores yet${reqPeriod === 'all' ? '' : daily ? ' today' : ' this week'}. Be the first.</div>`; return; }
+    const me = playerId(), esc = t => String(t).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+    el.innerHTML = rows.map((r, i) => `<div class="row${r.player_id === me ? ' me' : ''}"><span class="r">${i+1}</span><span class="nm">${esc(r.name)}</span><span class="sc">${r.score}${reqKind === 'daily_spares' ? '/10' : ''}</span>${r.detail ? `<span class="dt">${esc(r.detail)}</span>` : ''}</div>`).join('');
+  }catch(e){ if(reqKind === boardKind) el.innerHTML = '<div class="empty">Could not load the leaderboard. Check your connection and try again.</div>'; }
+}
+document.querySelectorAll('#tabs .tab').forEach(t => t.addEventListener('click', () => showBoard(t.dataset.k)));
+document.querySelectorAll('#seg button').forEach(b => b.addEventListener('click', () => { boardPeriod = b.dataset.p; showBoard(); }));
+
+// ----- name modal -----
+let nameDone = null;
+function askName(done){
+  nameDone = done || null; $('nameInput').value = playerName(); $('nameModal').classList.remove('hidden');
+  setTimeout(() => { try{ $('nameInput').focus(); }catch(e){} }, 50);
+}
+$('nameSave').addEventListener('click', () => {
+  const v = $('nameInput').value.trim().replace(/\s+/g, ' ').slice(0, 20);
+  if(!v){ $('nameInput').focus(); return; }
+  store.set('df_name', v); $('nameModal').classList.add('hidden');
+  const cb = nameDone; nameDone = null; if(cb) cb();
+  if(!$('boardScreen').classList.contains('hidden')) showBoard();
+});
+$('nameInput').addEventListener('keydown', e => { if(e.key === 'Enter') $('nameSave').click(); });
+$('nameSkip').addEventListener('click', () => { $('nameModal').classList.add('hidden'); nameDone = null; $('resRank').textContent = 'Set your name to post this score. It is saved until you do.'; });
+
 $('gameBtn').addEventListener('click', () => openDaily('game'));
 $('sparesBtn').addEventListener('click', () => openDaily('spares'));
-$('pracGameBtn').addEventListener('click', () => startRun('game', 'practice'));
+$('highBtn').addEventListener('click', () => startRun('high', 'weekly'));
+$('seriesBtn').addEventListener('click', () => startRun('series', 'weekly'));
 $('pracSparesBtn').addEventListener('click', () => startRun('spares', 'practice'));
-$('againBtn').addEventListener('click', () => startRun(resKind, 'practice'));
+$('nextGameBtn').addEventListener('click', () => startRun('series', 'weekly', true));
+$('againBtn').addEventListener('click', () => {
+  if(resKind === 'high') startRun('high', 'weekly');
+  else if(resKind === 'series') startRun('series', 'weekly');
+  else startRun(resKind, 'practice');
+});
+$('boardBtn').addEventListener('click', () => showBoard('daily_game'));
+$('resBoardBtn').addEventListener('click', () => { boardPeriod = 'now'; showBoard(BOARD_KIND[resKind]); });
+$('boardHomeBtn').addEventListener('click', showHome);
+$('nameBtn').addEventListener('click', () => askName());
 $('homeBtn').addEventListener('click', showHome);
 $('shareBtn').addEventListener('click', async () => {
   try{ if(navigator.share){ await navigator.share({text: lastShare}); return; } }
@@ -879,7 +1109,7 @@ window.addEventListener('resize', resize);
 document.addEventListener('visibilitychange', () => { if(document.hidden) rollSound(false); });
 resize(); showHome();
 requestAnimationFrame(frame);
-window.__df = {T, newSim, step, game, makeChallenge, runHeadless, todayKey, dayIndex, frameTotals, throwBall: tp => throwBall(tp), unproj, proj, get camZ(){ return camZ; }};
+window.__df = {weekStart, playerId, T, newSim, step, game, makeChallenge, runHeadless, todayKey, dayIndex, frameTotals, throwBall: tp => throwBall(tp), unproj, proj, get camZ(){ return camZ; }};
 })();
 </script>
 </body>
