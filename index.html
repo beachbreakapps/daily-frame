@@ -1,0 +1,714 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Daily Frame">
+<meta name="theme-color" content="#14110f">
+<link rel="apple-touch-icon" href="icon-192.png">
+<link rel="icon" type="image/png" href="icon-192.png">
+<link rel="manifest" href="manifest.json">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bowlby+One&family=DM+Sans:opsz,wght@9..40,400;9..40,600;9..40,800&family=DM+Mono:wght@500&display=swap">
+<title>Daily Frame</title>
+<style>
+/* Layout: full-screen lane canvas; scoresheet strip on top, controls hint at bottom, overlays for home/results. */
+:root{
+  color-scheme:dark;
+  --night:#14110f;      /* house-lights-down room */
+  --panel:#211c18;      /* masking unit / panels */
+  --line:#3a322b;
+  --maple:#e3b778;      /* lane wood */
+  --cream:#f6efe4;      /* pin white / text */
+  --muted:#a89a8a;
+  --neon:#ff4f7b;       /* cosmic-bowling pink accent */
+  --strike:#3ed598; --partial:#f5c04a; --miss:#5b524a;
+  --display:"Bowlby One", "Arial Black", Impact, sans-serif;
+  --body:"DM Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --mono:"DM Mono", ui-monospace, Menlo, monospace;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;background:var(--night);color:var(--cream);font-family:var(--body);overflow:hidden;overscroll-behavior:none;touch-action:none;-webkit-user-select:none;user-select:none;-webkit-tap-highlight-color:transparent;-webkit-touch-callout:none}
+#lane{position:fixed;inset:0;width:100%;height:100%;display:block}
+#hud{position:fixed;left:0;right:0;top:0;padding:calc(env(safe-area-inset-top,0px) + 8px) max(10px,env(safe-area-inset-right,0px)) 0 max(10px,env(safe-area-inset-left,0px));display:flex;flex-direction:column;align-items:center;gap:6px;pointer-events:none}
+.sheet{display:grid;grid-template-columns:repeat(10,1fr) 1.3fr;width:100%;max-width:520px;border:1.5px solid var(--line);border-radius:8px;overflow:hidden;background:rgba(20,17,15,.88)}
+.box{border-right:1px solid var(--line);display:flex;flex-direction:column;align-items:center;font-family:var(--mono);min-width:0}
+.box .n{font-size:9px;color:var(--muted);padding-top:2px}
+.box .m{font-size:17px;font-weight:500;height:24px;line-height:24px}
+.box.cur{background:rgba(255,79,123,.18)}
+.box.cur .n{color:var(--neon)}
+.box.tot{border-right:none;background:rgba(255,255,255,.04)}
+.box .m.x{color:var(--strike)} .box .m.s{color:var(--strike)} .box .m.p{color:var(--partial)} .box .m.z{color:var(--miss)}
+.row2{display:flex;width:100%;max-width:520px;justify-content:space-between;align-items:flex-start;gap:8px}
+.info{display:flex;flex-direction:column;gap:2px;min-width:0}
+.info .t{font-family:var(--display);font-size:20px;letter-spacing:.02em;line-height:1.05}
+.info .t em{font-style:normal;color:var(--neon)}
+.info .s{font-size:12px;color:var(--muted)}
+#rack{width:74px;height:66px;flex:none;background:rgba(20,17,15,.88);border:1.5px solid var(--line);border-radius:8px}
+#banner{position:fixed;left:0;right:0;top:38%;text-align:center;font-family:var(--display);font-size:clamp(36px,11vw,64px);color:var(--cream);text-shadow:0 4px 0 var(--neon),0 0 30px rgba(255,79,123,.55);pointer-events:none;opacity:0;transform:scale(.8);transition:opacity .2s,transform .25s}
+#banner.on{opacity:1;transform:scale(1)}
+#banner small{display:block;font-family:var(--body);font-weight:800;font-size:16px;text-shadow:none;color:var(--cream);margin-top:6px;letter-spacing:.04em}
+#hint{position:fixed;left:0;right:0;bottom:calc(env(safe-area-inset-bottom,0px) + 14px);text-align:center;font-size:13px;color:var(--cream);opacity:.85;pointer-events:none;padding:0 16px;text-shadow:0 1px 3px #000}
+#hint b{color:var(--neon)}
+#speed{position:fixed;right:max(12px,env(safe-area-inset-right,0px));bottom:calc(env(safe-area-inset-bottom,0px) + 44px);font-family:var(--mono);font-size:13px;color:var(--cream);background:rgba(20,17,15,.85);border:1px solid var(--line);border-radius:6px;padding:4px 8px;pointer-events:none;opacity:0;transition:opacity .2s}
+#speed.on{opacity:1}
+.screen{position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;background:radial-gradient(120% 80% at 50% 0%,rgba(255,79,123,.16),transparent 60%),rgba(20,17,15,.975);padding:calc(env(safe-area-inset-top,0px) + 20px) max(20px,env(safe-area-inset-right,0px)) calc(env(safe-area-inset-bottom,0px) + 20px) max(20px,env(safe-area-inset-left,0px));overflow-y:auto;touch-action:pan-y}
+.card{width:100%;max-width:400px;display:flex;flex-direction:column;align-items:center;gap:16px;text-align:center}
+.logo{font-family:var(--display);font-size:clamp(46px,15vw,68px);line-height:.9;letter-spacing:.01em;color:var(--cream);text-shadow:0 5px 0 var(--neon)}
+.kicker{font-size:12px;font-weight:800;letter-spacing:.22em;color:var(--neon);text-transform:uppercase}
+.lanecard{width:100%;border:1.5px solid var(--line);border-radius:12px;padding:12px 14px;display:grid;grid-template-columns:1fr 1fr;gap:10px;text-align:left;background:var(--panel)}
+.lanecard div{display:flex;flex-direction:column;gap:2px;min-width:0}
+.lanecard small{font-size:10px;font-weight:800;letter-spacing:.16em;color:var(--muted)}
+.lanecard span{font-size:15px;font-weight:600}
+.btn{font:inherit;font-weight:800;font-size:17px;width:100%;padding:15px 18px;border-radius:12px;border:none;background:var(--neon);color:#1a0610;cursor:pointer}
+.btn.ghost{background:transparent;color:var(--cream);border:1.5px solid var(--line)}
+.btn:focus-visible{outline:3px solid var(--cream);outline-offset:2px}
+.how{font-size:14px;color:var(--muted);line-height:1.5;max-width:340px}
+.how b{color:var(--cream)}
+.stats{display:grid;grid-template-columns:repeat(4,1fr);width:100%;gap:6px}
+.stats div{display:flex;flex-direction:column;align-items:center}
+.stats b{font-family:var(--mono);font-size:22px;font-weight:500;font-variant-numeric:tabular-nums}
+.stats small{font-size:10px;color:var(--muted);letter-spacing:.1em;font-weight:800}
+.big{font-family:var(--display);font-size:56px;line-height:1}
+.big small{font-family:var(--mono);font-size:20px;color:var(--muted)}
+.tiles{font-size:26px;letter-spacing:2px}
+.foot{font-size:12px;color:var(--muted)}
+.toast{font-size:13px;color:var(--strike);min-height:18px}
+.hidden{display:none!important}
+</style>
+</head>
+<body>
+<canvas id="lane"></canvas>
+
+<div id="hud" class="hidden">
+  <div class="sheet" id="sheet"></div>
+  <div class="row2">
+    <div class="info"><div class="t" id="shotTitle">Strike shot</div><div class="s" id="shotSub">Lane: 40 ft</div></div>
+    <canvas id="rack" width="148" height="132"></canvas>
+  </div>
+</div>
+<div id="banner"></div>
+<div id="speed"></div>
+<div id="hint" class="hidden"><b>Drag sideways</b> to line up · <b>Swipe up</b> to roll · <b>Curve the swipe</b> to hook</div>
+
+<div class="screen" id="home">
+  <div class="card">
+    <div class="kicker" id="homeKicker">Challenge #1</div>
+    <div class="logo">DAILY<br>FRAME</div>
+    <div class="lanecard">
+      <div><small>TODAY'S OIL</small><span id="homeOil">40 ft</span></div>
+      <div><small>LANE PLAYS</small><span id="homeCond">Medium</span></div>
+      <div><small>SHOTS</small><span>10, one ball each</span></div>
+      <div><small>NEW CHALLENGE</small><span id="homeNext">Midnight ET</span></div>
+    </div>
+    <button class="btn" id="playBtn" type="button">Bowl today's frame</button>
+    <button class="btn ghost" id="practiceBtn" type="button">Practice lane</button>
+    <p class="how">Everyone gets the same 10 shots today: <b>strike shots</b> and <b>spare leaves</b>. Score = pins knocked down + 10 for every strike or spare you make (+10 more for a split).</p>
+    <div class="stats" id="homeStats"></div>
+    <div class="foot">A Welcome To Bowling prototype</div>
+  </div>
+</div>
+
+<div class="screen hidden" id="results">
+  <div class="card">
+    <div class="kicker" id="resKicker">Daily Frame #1</div>
+    <div class="big" id="resScore">0<small>/180</small></div>
+    <div class="tiles" id="resTiles"></div>
+    <div class="foot" id="resLine"></div>
+    <button class="btn" id="shareBtn" type="button">Share my score</button>
+    <div class="toast" id="toast"></div>
+    <div class="stats" id="resStats"></div>
+    <div class="foot" id="resNext"></div>
+    <button class="btn ghost" id="practiceBtn2" type="button">Practice lane</button>
+    <button class="btn ghost" id="homeBtn" type="button">Home</button>
+  </div>
+</div>
+
+<script>
+(() => {
+'use strict';
+// =============== Units: inches. x = across the lane (+ right), z = down the lane from the foul line. ===============
+const LANE_HALF = 20.75, BOARD = 41.5 / 39, GUTTER_X = 25.4, KICK_X = 30;
+const HEAD_Z = 720, PIT_Z = 776, BALL_R = 4.3, PIN_R = 2.4, DOWN_R = 3.6, PIN_H = 15;
+const BALL_M = 15, PIN_M = 3.5;
+const ROW = 12 * Math.sqrt(3) / 2;
+const PIN_SPOTS = { 1:[0,0], 2:[-6,ROW], 3:[6,ROW], 4:[-12,2*ROW], 5:[0,2*ROW], 6:[12,2*ROW], 7:[-18,3*ROW], 8:[-6,3*ROW], 9:[6,3*ROW], 10:[18,3*ROW] };
+const ALL = [1,2,3,4,5,6,7,8,9,10];
+const LAUNCH = '2026-11-04';
+const SITE = 'https://beachbreakapps.github.io/daily-frame/';
+
+// Spare leaves (pins left standing). split:true means a real split.
+const LEAVES = [
+  {p:[10], name:'10 pin'}, {p:[7], name:'7 pin'}, {p:[6,10], name:'6-10'}, {p:[4,7], name:'4-7'},
+  {p:[3,6,10], name:'3-6-10'}, {p:[2,4,7], name:'2-4-7'}, {p:[2,4,5,8], name:'Bucket'}, {p:[3,5,6,9], name:'Right bucket'},
+  {p:[2,8], name:'2-8'}, {p:[3,9], name:'3-9'}, {p:[5], name:'5 pin'}, {p:[1,2,4,10], name:'Washout'},
+  {p:[3,10], name:'3-10 baby split', split:true}, {p:[2,7], name:'2-7 baby split', split:true},
+  {p:[4,9], name:'4-9 split', split:true}, {p:[5,7], name:'5-7 split', split:true}
+];
+
+// =============== Safe storage ===============
+const store = {
+  get(k, d){ try{ const v = localStorage.getItem(k); return v === null ? d : JSON.parse(v); }catch(e){ return d; } },
+  set(k, v){ try{ localStorage.setItem(k, JSON.stringify(v)); }catch(e){} }
+};
+
+// =============== Dates (Eastern time) ===============
+function easternParts(d = new Date()){
+  const f = new Intl.DateTimeFormat('en-CA', {timeZone:'America/New_York', year:'numeric', month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit', second:'2-digit', hourCycle:'h23'});
+  const o = {}; for(const p of f.formatToParts(d)) o[p.type] = p.value; return o;
+}
+function todayKey(){ const p = easternParts(); return `${p.year}-${p.month}-${p.day}`; }
+function dayIndex(key){ return Math.round((Date.parse(key + 'T12:00:00Z') - Date.parse(LAUNCH + 'T12:00:00Z')) / 864e5); }
+function untilMidnight(){ const p = easternParts(); const s = 86400 - (+p.hour*3600 + +p.minute*60 + +p.second); const h = Math.floor(s/3600), m = Math.floor(s%3600/60); return `${h}h ${m}m`; }
+
+// =============== Seeded challenge ===============
+function rng(seed){ return () => { seed |= 0; seed = seed + 0x6D2B79F5 | 0; let t = Math.imul(seed ^ seed >>> 15, 1 | seed); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+function makeChallenge(seed){
+  const r = rng(seed * 7919 + 13);
+  const oilFt = 36 + Math.floor(r() * 9);                 // 36-44 ft
+  const hook = 0.85 + r() * 0.35;                          // how much the dry backend grabs
+  const cond = oilFt <= 38 ? 'Short oil, hooks early' : oilFt >= 42 ? 'Long oil, holds line' : 'Medium, fair';
+  const shots = [];
+  const easy = LEAVES.filter(l => !l.split), splits = LEAVES.filter(l => l.split);
+  let usedSplit = false;
+  for(let i = 0; i < 10; i++){
+    if(i === 0 || i === 3 || i === 6 || i === 9){ shots.push({type:'strike', pins:ALL.slice(), name:'Full rack'}); continue; }
+    let pool = (!usedSplit && r() < 0.28) ? splits : easy;
+    const pick = pool[Math.floor(r() * pool.length)];
+    if(pick.split) usedSplit = true;
+    if(shots.some(s => s.name === pick.name)){ i--; continue; }
+    shots.push({type:'spare', pins:pick.p.slice(), name:pick.name, split:!!pick.split});
+  }
+  const max = shots.reduce((a, s) => a + s.pins.length + 10 + (s.split ? 10 : 0), 0);
+  return {oilFt, oil: oilFt * 12, hook, cond, shots, max};
+}
+
+// =============== Physics ===============
+function newRack(standing){
+  return standing.map(n => ({n, x:PIN_SPOTS[n][0], z:HEAD_Z + PIN_SPOTS[n][1], vx:0, vz:0, down:false, gone:false, fall:0, fallDir:0, wob:0}));
+}
+function collide(a, ma, ra, b, mb, rb, e, tang){
+  const dx = b.x - a.x, dz = b.z - a.z, d2 = dx*dx + dz*dz, R = ra + rb;
+  if(d2 >= R*R || d2 === 0) return null;
+  const d = Math.sqrt(d2), nx = dx/d, nz = dz/d;
+  const over = R - d, ia = 1/ma, ib = 1/mb;
+  a.x -= nx*over*ia/(ia+ib); a.z -= nz*over*ia/(ia+ib);
+  b.x += nx*over*ib/(ia+ib); b.z += nz*over*ib/(ia+ib);
+  const rv = (b.vx - a.vx)*nx + (b.vz - a.vz)*nz;
+  if(rv >= 0) return 0;
+  const j = -(1 + e) * rv / (ia + ib);
+  a.vx -= j*ia*nx; a.vz -= j*ia*nz;
+  b.vx += j*ib*nx; b.vz += j*ib*nz;
+  // pins pick up some of the sideways motion of whatever hits them (makes pin action lively)
+  const tx = -nz, tz = nx, tv = (a.vx - b.vx)*tx + (a.vz - b.vz)*tz;
+  b.vx += tx*tv*tang; b.vz += tz*tv*tang;
+  return -rv;
+}
+const T = {fallLo:10, fallHi:30, downR:3.0, downR2:4.0, tang:0.09, tang2:0.24, ePin:0.6, ePin2:0.72, eBall:0.62, hookAcc:24, oilF:0.08, vxCap:0.1, fric:2.4, pocketX:3, pocketW:4, angFull:3};
+function knock(p, hitSpeed, sim){
+  if(p.down) return;
+  if(hitSpeed > (sim.fallV || T.fallHi)){ p.down = true; p.fallDir = Math.atan2(p.vx, p.vz); }
+  else { p.vx = 0; p.vz = 0; p.wob = 0.5; } // wobbles but stays up
+}
+// One simulation step. Returns events for sound.
+function step(sim, dt){
+  const b = sim.ball, ch = sim.ch, ev = {hit:0};
+  if(b.active){
+    if(!b.gutter){
+      const dry = b.z > ch.oil ? 1 : T.oilF;
+      b.vx += b.hookDir * b.spin * T.hookAcc * ch.hook * dry * dt;
+      const maxVx = b.vz * T.vxCap; if(Math.abs(b.vx) > maxVx) b.vx = Math.sign(b.vx) * maxVx;
+    }
+    b.x += b.vx*dt; b.z += b.vz*dt; b.roll += b.vz*dt / BALL_R;
+    if(!b.gutter && Math.abs(b.x) > LANE_HALF){ b.gutter = true; b.vx = 0; b.side = Math.sign(b.x); }
+    if(b.gutter){ b.x += (b.side*GUTTER_X - b.x) * Math.min(1, dt*12); }
+    if(b.z > PIT_Z + 30) b.active = false;
+  }
+  // Pocket rule: how well the ball enters the rack decides how lively the pins are.
+  if(b.active && !sim.rated && b.z >= HEAD_Z - 14){
+    sim.rated = true;
+    const ang = Math.atan2(b.vx, b.vz) * 180 / Math.PI;
+    const side = Math.abs(ang) > 0.4 ? (ang < 0 ? 1 : -1) : (b.x >= 0 ? 1 : -1); // 1-3 pocket for right, 1-2 for left
+    const qPos = b.gutter ? 0 : Math.max(0, 1 - Math.abs(b.x - side*T.pocketX) / T.pocketW);
+    const qAng = Math.max(0.3, Math.min(1, Math.abs(ang) / T.angFull));
+    sim.quality = qPos * qAng;
+    const q = sim.quality;
+    sim.fallV = T.fallHi - (T.fallHi - T.fallLo) * q;
+    sim.downR = T.downR + (T.downR2 - T.downR) * q;
+    sim.tang = T.tang + (T.tang2 - T.tang) * q;
+    sim.ePin = T.ePin + (T.ePin2 - T.ePin) * q;
+  }
+  // ball vs pins (a ball in the gutter rolls under the pin deck edge and can't hit pins)
+  if(b.active && !b.gutter && b.z > HEAD_Z - 20){
+    for(const p of sim.pins){
+      if(p.gone) continue;
+      const s = collide(b, BALL_M, BALL_R, p, PIN_M, p.down ? sim.downR : PIN_R, T.eBall, sim.tang);
+      if(s){ knock(p, s, sim); ev.hit = Math.max(ev.hit, s); }
+    }
+  }
+  // pins vs pins
+  const ps = sim.pins;
+  for(let i = 0; i < ps.length; i++){
+    const a = ps[i]; if(a.gone) continue;
+    for(let j = i+1; j < ps.length; j++){
+      const c = ps[j]; if(c.gone) continue;
+      if(!a.down && !c.down) continue;
+      const s = collide(a, PIN_M, a.down ? sim.downR : PIN_R, c, PIN_M, c.down ? sim.downR : PIN_R, sim.ePin, sim.tang);
+      if(s){ knock(a, s, sim); knock(c, s, sim); ev.hit = Math.max(ev.hit, s*0.6); }
+    }
+  }
+  // pin motion, kickbacks, pit
+  for(const p of ps){
+    if(p.gone) continue;
+    if(p.wob > 0) p.wob = Math.max(0, p.wob - dt);
+    if(!p.down){ p.vx = 0; p.vz = 0; continue; }
+    p.fall = Math.min(1, p.fall + dt*5);
+    p.x += p.vx*dt; p.z += p.vz*dt;
+    const f = Math.exp(-T.fric*dt); p.vx *= f; p.vz *= f;
+    if(Math.abs(p.x) > KICK_X - sim.downR){ p.x = Math.sign(p.x)*(KICK_X - sim.downR); p.vx = -p.vx*0.75; }
+    if(p.z < HEAD_Z - 30){ p.z = HEAD_Z - 30; p.vz = Math.abs(p.vz)*0.3; }
+    if(p.z > PIT_Z) p.gone = true;
+    if(Math.abs(p.x) > LANE_HALF + 2 && Math.hypot(p.vx, p.vz) < 6) p.gone = true; // dropped in the gutter
+  }
+  sim.t += dt;
+  if(!b.active) sim.after += dt;
+  const moving = ps.some(p => !p.gone && p.down && Math.hypot(p.vx, p.vz) > 4);
+  sim.done = !b.active && (sim.after > 2.6 || (!moving && sim.after > 1.0));
+  return ev;
+}
+function newSim(ch, standing, throwP){
+  const v = throwP.mph * 17.6, a = throwP.angle;
+  return {ch, t:0, after:0, done:false, rated:false, quality:0, fallV:T.fallHi, downR:T.downR, tang:T.tang, ePin:T.ePin, pins:newRack(standing),
+          ball:{x:throwP.x, z:0, vx:v*Math.sin(a), vz:v*Math.cos(a), spin:throwP.spin, hookDir:throwP.hookDir, gutter:false, active:true, roll:0, side:0}};
+}
+function runHeadless(ch, standing, throwP){ // used for testing
+  const s = newSim(ch, standing, throwP); let n = 0;
+  while(!s.done && n++ < 20000) step(s, 1/240);
+  return {standing: s.pins.filter(p => !p.down && !p.gone).map(p => p.n), gutter: s.ball.gutter};
+}
+
+// =============== Rendering (perspective lane) ===============
+const cv = document.getElementById('lane'), ctx = cv.getContext('2d');
+let W = 0, H = 0, DPR = 1, F = 400, HOR = 100, CAMH = 70, CX = 0, camZ = -60;
+function resize(){
+  DPR = Math.min(window.devicePixelRatio || 1, 2.5);
+  W = window.innerWidth; H = window.innerHeight;
+  cv.width = W*DPR; cv.height = H*DPR; ctx.setTransform(DPR,0,0,DPR,0,0);
+  const gw = Math.min(W, H*0.62);
+  F = 1.12 * gw; CX = W/2; HOR = H*0.2;
+  CAMH = (H*0.86 - HOR) * 62 / F;
+}
+function proj(x, z, y = 0){ const d = z - camZ; if(d < 4) return null; const s = F/d; return {x: CX + x*s, y: HOR + (CAMH - y)*s, s}; }
+function unproj(sx, sy){ const dy = Math.max(sy - HOR, 6); const d = CAMH*F/dy; return {x:(sx - CX)*d/F, z: camZ + d}; }
+function quad(x1, z1, x2, z2, color, y = 0){
+  const n = Math.max(z1, camZ + 6), f = Math.max(z2, n + 0.01);
+  const a = proj(x1, n, y), b = proj(x2, n, y), c = proj(x2, f, y), d = proj(x1, f, y);
+  if(!a || !c) return;
+  ctx.fillStyle = color; ctx.beginPath(); ctx.moveTo(a.x,a.y); ctx.lineTo(b.x,b.y); ctx.lineTo(c.x,c.y); ctx.lineTo(d.x,d.y); ctx.closePath(); ctx.fill();
+}
+function line3(x1, z1, x2, z2, color, w){
+  const n1 = Math.max(z1, camZ + 6), n2 = Math.max(z2, camZ + 6); if(n2 <= n1 && z2 > z1) return;
+  const a = proj(x1, n1), b = proj(x2, n2); if(!a || !b) return;
+  ctx.strokeStyle = color; ctx.lineWidth = w; ctx.beginPath(); ctx.moveTo(a.x,a.y); ctx.lineTo(b.x,b.y); ctx.stroke();
+}
+function drawLane(ch){
+  // room
+  const g = ctx.createLinearGradient(0,0,0,H); g.addColorStop(0,'#0c0a09'); g.addColorStop(1,'#1c1714');
+  ctx.fillStyle = g; ctx.fillRect(0,0,W,H);
+  // masking unit (back wall over the pins)
+  const back = PIT_Z + 26;
+  const w1 = proj(-48, back, 0), w2 = proj(48, back, 44);
+  if(w1 && w2){
+    ctx.fillStyle = '#1d1815'; ctx.fillRect(w1.x, w2.y, w2.x - w1.x, w1.y - w2.y);
+    const mid = proj(0, back, 30);
+    ctx.save(); ctx.fillStyle = '#ff4f7b'; ctx.shadowColor = '#ff4f7b'; ctx.shadowBlur = 18*mid.s;
+    ctx.font = `${Math.max(8, 7.5*mid.s)}px "Bowlby One", "Arial Black", sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText('DAILY FRAME', mid.x, mid.y); ctx.restore();
+    ctx.fillStyle = '#070606'; const p1 = proj(-KICK_X, PIT_Z, 0), p2 = proj(KICK_X, back, 0);
+    if(p1 && p2) ctx.fillRect(p1.x, p2.y, p2.x - p1.x, p1.y - p2.y);
+  }
+  // kickbacks (side walls at the pin deck)
+  for(const s of [-1, 1]){
+    const a = proj(s*KICK_X, HEAD_Z - 34, 0), b = proj(s*KICK_X, back, 0), c = proj(s*KICK_X, back, 26), d = proj(s*KICK_X, HEAD_Z - 34, 26);
+    if(a && b){ ctx.fillStyle = '#2a231e'; ctx.beginPath(); ctx.moveTo(a.x,a.y); ctx.lineTo(b.x,b.y); ctx.lineTo(c.x,c.y); ctx.lineTo(d.x,d.y); ctx.closePath(); ctx.fill(); }
+  }
+  // approach, gutters, lane, oil shine, pin deck
+  quad(-KICK_X, -120, KICK_X, 0, '#3a2a1c');
+  quad(-LANE_HALF - 9.25, 0, -LANE_HALF, PIT_Z, '#2b2622');
+  quad(LANE_HALF, 0, LANE_HALF + 9.25, PIT_Z, '#2b2622');
+  quad(-LANE_HALF, 0, LANE_HALF, HEAD_Z - 34, '#d9a865');
+  quad(-LANE_HALF, 0, LANE_HALF, ch.oil, 'rgba(255,236,200,.16)');
+  quad(-LANE_HALF, HEAD_Z - 34, LANE_HALF, PIT_Z, '#ecc690');
+  // boards
+  for(let i = 1; i < 39; i++){
+    const x = -LANE_HALF + i*BOARD;
+    line3(x, 0, x, PIT_Z, i % 5 === 0 ? 'rgba(90,55,25,.35)' : 'rgba(90,55,25,.14)', 1);
+  }
+  // foul line
+  const f1 = proj(-LANE_HALF, 0.5), f2 = proj(LANE_HALF, 0.5);
+  if(f1 && f2){ ctx.strokeStyle = '#1b1310'; ctx.lineWidth = Math.max(1.5, 1*f1.s); ctx.beginPath(); ctx.moveTo(f1.x,f1.y); ctx.lineTo(f2.x,f2.y); ctx.stroke(); }
+  // dots at 7 ft and arrows at 15 ft
+  for(const b of [3,5,8,11,14]) for(const s of [-1,1]){ const p = proj(s*(LANE_HALF - (b-0.5)*BOARD), 84); if(p){ ctx.fillStyle = '#5a3416'; ctx.beginPath(); ctx.arc(p.x, p.y, Math.max(1, .5*p.s), 0, 7); ctx.fill(); } }
+  for(const b of [5,10,15,20,25,30,35]){
+    const x = LANE_HALF - (b-0.5)*BOARD, z = 180 + Math.abs(20-b)*1.1;
+    const t = proj(x, z + 7), l = proj(x - 0.55, z), r = proj(x + 0.55, z);
+    if(t && l && r){ ctx.fillStyle = '#5a3416'; ctx.beginPath(); ctx.moveTo(t.x,t.y); ctx.lineTo(l.x,l.y); ctx.lineTo(r.x,r.y); ctx.closePath(); ctx.fill(); }
+  }
+  // pin spots
+  for(const n of ALL){ const p = proj(PIN_SPOTS[n][0], HEAD_Z + PIN_SPOTS[n][1]); if(p){ ctx.fillStyle = 'rgba(120,70,30,.35)'; ctx.beginPath(); ctx.ellipse(p.x, p.y, 1.1*p.s, .5*p.s, 0, 0, 7); ctx.fill(); } }
+}
+function pinOutline(h){
+  const w = h/15;
+  ctx.beginPath();
+  ctx.moveTo(-1.0*w, 0);
+  ctx.bezierCurveTo(-2.0*w, -1.5*w, -2.6*w, -3.5*w, -2.35*w, -5.5*w);
+  ctx.bezierCurveTo(-2.1*w, -7.6*w, -0.75*w, -8.6*w, -0.85*w, -10.3*w);
+  ctx.bezierCurveTo(-0.95*w, -11.4*w, -1.35*w, -12.3*w, -1.2*w, -13.6*w);
+  ctx.bezierCurveTo(-1.0*w, -15.2*w, 1.0*w, -15.2*w, 1.2*w, -13.6*w);
+  ctx.bezierCurveTo(1.35*w, -12.3*w, 0.95*w, -11.4*w, 0.85*w, -10.3*w);
+  ctx.bezierCurveTo(0.75*w, -8.6*w, 2.1*w, -7.6*w, 2.35*w, -5.5*w);
+  ctx.bezierCurveTo(2.6*w, -3.5*w, 2.0*w, -1.5*w, 1.0*w, 0);
+  ctx.closePath();
+}
+function drawPin(p){
+  const sp = proj(p.x, p.z); if(!sp) return;
+  const h = PIN_H*sp.s;
+  ctx.save(); ctx.translate(sp.x, sp.y);
+  ctx.fillStyle = 'rgba(0,0,0,.25)'; ctx.beginPath(); ctx.ellipse(0, 0, 2.6*sp.s, 1.0*sp.s, 0, 0, 7); ctx.fill();
+  let rot = 0;
+  if(p.down){ const side = Math.sin(p.fallDir) >= 0 ? 1 : -1; rot = side * p.fall * 1.35; }
+  else if(p.wob > 0) rot = Math.sin(p.wob*40) * p.wob * 0.25;
+  ctx.rotate(rot);
+  if(p.down) ctx.scale(1, 1 - p.fall*0.25);
+  pinOutline(h);
+  const g = ctx.createLinearGradient(-2.4*h/15, 0, 2.4*h/15, 0);
+  g.addColorStop(0, '#d7cfc4'); g.addColorStop(.4, '#fffaf2'); g.addColorStop(1, '#bfb5a8');
+  ctx.fillStyle = g; ctx.fill();
+  ctx.save(); ctx.clip(); ctx.fillStyle = '#d6253d';
+  ctx.fillRect(-3*h/15, -11.6*h/15, 6*h/15, .55*h/15); ctx.fillRect(-3*h/15, -10.7*h/15, 6*h/15, .55*h/15);
+  ctx.restore();
+  ctx.restore();
+}
+function drawBall(b){
+  const y = b.gutter ? -2 : 0, sp = proj(b.x, b.z, BALL_R + y); if(!sp) return;
+  const r = BALL_R*sp.s, g0 = proj(b.x, b.z, y);
+  ctx.fillStyle = 'rgba(0,0,0,.3)'; ctx.beginPath(); ctx.ellipse(g0.x, g0.y, r*1.05, r*.35, 0, 0, 7); ctx.fill();
+  const g = ctx.createRadialGradient(sp.x - r*.35, sp.y - r*.4, r*.1, sp.x, sp.y, r);
+  g.addColorStop(0, '#ff9ab6'); g.addColorStop(.35, '#e2245a'); g.addColorStop(1, '#3a0517');
+  ctx.fillStyle = g; ctx.beginPath(); ctx.arc(sp.x, sp.y, r, 0, 7); ctx.fill();
+  // finger holes rolling over the top
+  const ph = (b.roll % (Math.PI*2));
+  const vis = Math.cos(ph);
+  if(vis > 0){
+    const yy = sp.y - r*Math.sin(ph)*0.75;
+    ctx.fillStyle = 'rgba(20,0,8,.85)';
+    for(const [dx, dy, rr] of [[0,.2,.14],[-.2,-.12,.11],[.2,-.12,.11]]){ ctx.beginPath(); ctx.ellipse(sp.x + dx*r, yy + dy*r*vis, rr*r, rr*r*vis, 0, 0, 7); ctx.fill(); }
+  }
+  ctx.fillStyle = 'rgba(255,255,255,.45)'; ctx.beginPath(); ctx.ellipse(sp.x - r*.38, sp.y - r*.45, r*.22, r*.12, -.6, 0, 7); ctx.fill();
+}
+function drawAimGuide(){
+  if(game.phase !== 'aim') return;
+  // faint target line straight ahead from the ball to the arrows
+  ctx.setLineDash([4, 6]);
+  line3(game.ballX, 2, game.ballX, 180, 'rgba(255,79,123,.55)', 1.5);
+  ctx.setLineDash([]);
+  if(game.swipe && game.swipe.pts.length > 1){
+    ctx.strokeStyle = 'rgba(255,255,255,.7)'; ctx.lineWidth = 3; ctx.lineCap = 'round';
+    ctx.beginPath(); game.swipe.pts.forEach((p, i) => i ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y)); ctx.stroke();
+  }
+}
+function render(){
+  const ch = game.ch || makeChallenge(0);
+  drawLane(ch);
+  const items = [];
+  const pins = game.sim ? game.sim.pins : game.rack;
+  if(pins) for(const p of pins) if(!p.gone) items.push({z:p.z + (p.down ? 0 : 0.01), d:() => drawPin(p)});
+  const ball = game.sim ? game.sim.ball : (game.phase === 'aim' ? {x:game.ballX, z:BALL_R + 1, gutter:false, roll:0} : null);
+  if(ball && (game.sim ? ball.active || ball.z < PIT_Z + 30 : true)) items.push({z:ball.z, d:() => drawBall(ball)});
+  items.sort((a, b) => b.z - a.z).forEach(i => i.d());
+  drawAimGuide();
+}
+
+// =============== Sound ===============
+let actx = null, noise = null;
+function audio(){
+  try{
+    if(!actx){ actx = new (window.AudioContext || window.webkitAudioContext)();
+      noise = actx.createBuffer(1, actx.sampleRate, actx.sampleRate); const d = noise.getChannelData(0); for(let i = 0; i < d.length; i++) d[i] = Math.random()*2 - 1; }
+    if(actx.state === 'suspended') actx.resume();
+  }catch(e){}
+}
+function crash(power){
+  if(!actx) return;
+  try{
+    const t = actx.currentTime, src = actx.createBufferSource(), f = actx.createBiquadFilter(), g = actx.createGain();
+    src.buffer = noise; f.type = 'bandpass'; f.frequency.value = 1400 + Math.random()*900; f.Q.value = .8;
+    g.gain.setValueAtTime(Math.min(.5, power/600), t); g.gain.exponentialRampToValueAtTime(.0001, t + .35);
+    src.connect(f); f.connect(g); g.connect(actx.destination); src.start(t); src.stop(t + .4);
+  }catch(e){}
+}
+let rumble = null;
+function rollSound(on){
+  if(!actx) return;
+  try{
+    if(on && !rumble){ const src = actx.createBufferSource(), f = actx.createBiquadFilter(), g = actx.createGain();
+      src.buffer = noise; src.loop = true; f.type = 'lowpass'; f.frequency.value = 180; g.gain.value = .22;
+      src.connect(f); f.connect(g); g.connect(actx.destination); src.start(); rumble = {src, g}; }
+    if(!on && rumble){ const r = rumble; rumble = null; r.g.gain.setTargetAtTime(0, actx.currentTime, .08); setTimeout(() => { try{ r.src.stop(); }catch(e){} }, 400); }
+  }catch(e){}
+}
+
+// =============== Game flow ===============
+const $ = id => document.getElementById(id);
+const game = {mode:'home', phase:'idle', ch:null, idx:0, results:[], rack:null, sim:null, ballX:0, swipe:null, dayKey:null, practiceSeed:0};
+
+function startRun(mode){
+  audio();
+  game.mode = mode;
+  if(mode === 'daily'){ game.dayKey = todayKey(); game.ch = makeChallenge(dayIndex(game.dayKey) + 1); }
+  else { game.practiceSeed = (Math.random()*1e9) | 0; game.ch = makeChallenge(game.practiceSeed); }
+  game.idx = 0; game.results = [];
+  $('home').classList.add('hidden'); $('results').classList.add('hidden');
+  $('hud').classList.remove('hidden'); $('hint').classList.remove('hidden');
+  setupShot();
+}
+function setupShot(){
+  const s = game.ch.shots[game.idx];
+  game.rack = newRack(s.pins); game.sim = null; game.phase = 'aim'; camZ = -60;
+  // sensible start spot: right of center for strike shots, cross-lane for corner pins
+  const avgX = s.pins.reduce((a, n) => a + PIN_SPOTS[n][0], 0) / s.pins.length;
+  game.ballX = s.type === 'strike' ? 0 : Math.max(-14, Math.min(14, -avgX*0.6));
+  $('shotTitle').innerHTML = s.type === 'strike' ? 'Strike shot' : `Spare: <em>${s.name}</em>`;
+  $('shotSub').textContent = `${game.mode === 'daily' ? 'Shot' : 'Practice shot'} ${game.idx + 1} of 10 · Oil ${game.ch.oilFt} ft`;
+  updateSheet(); drawRack(s.pins, []);
+  $('speed').classList.add('on');
+}
+function frameMark(r){
+  if(!r) return {m:'', c:''};
+  if(r.type === 'strike'){
+    if(r.left === 0) return {m:'X', c:'x'};
+    if(r.gutter) return {m:'G', c:'z'};
+    return {m:String(r.down), c: r.down >= 7 ? 'p' : 'z'};
+  }
+  if(r.left === 0) return {m:'/', c:'s'};
+  return {m: r.down ? String(r.down) : '-', c: r.down ? 'p' : 'z'};
+}
+function total(){ return game.results.reduce((a, r) => a + r.points, 0); }
+function updateSheet(){
+  let h = '';
+  for(let i = 0; i < 10; i++){
+    const fm = frameMark(game.results[i]);
+    h += `<div class="box${i === game.idx && game.phase !== 'done' ? ' cur' : ''}"><span class="n">${i+1}</span><span class="m ${fm.c}">${fm.m}</span></div>`;
+  }
+  h += `<div class="box tot"><span class="n">PTS</span><span class="m">${total()}</span></div>`;
+  $('sheet').innerHTML = h;
+}
+function drawRack(standing, downList){
+  const c = $('rack'), x = c.getContext('2d'), w = c.width, hh = c.height;
+  x.clearRect(0, 0, w, hh);
+  const pos = {7:[0,0],8:[1,0],9:[2,0],10:[3,0],4:[.5,1],5:[1.5,1],6:[2.5,1],2:[1,2],3:[2,2],1:[1.5,3]};
+  for(const n of ALL){
+    const [cx, cy] = pos[n], px = 22 + cx*35, py = 20 + cy*31;
+    const up = standing.includes(n), justDown = downList.includes(n);
+    x.beginPath(); x.arc(px, py, 12, 0, 7);
+    if(up){ x.fillStyle = '#f6efe4'; x.fill(); }
+    else if(justDown){ x.strokeStyle = '#ff4f7b'; x.lineWidth = 3; x.stroke(); }
+    else { x.strokeStyle = '#3a322b'; x.lineWidth = 2; x.stroke(); }
+  }
+}
+function banner(text, sub){
+  const b = $('banner'); b.innerHTML = text + (sub ? `<small>${sub}</small>` : ''); b.classList.add('on');
+}
+function clearBanner(){ $('banner').classList.remove('on'); }
+
+function throwBall(tp){
+  game.phase = 'roll'; game.swipe = null;
+  game.sim = newSim(game.ch, game.ch.shots[game.idx].pins, tp);
+  $('speed').textContent = `${tp.mph.toFixed(1)} mph`; $('speed').classList.add('on');
+  $('hint').classList.add('hidden');
+  rollSound(true);
+}
+function finishShot(){
+  const s = game.ch.shots[game.idx], sim = game.sim;
+  const left = sim.pins.filter(p => !p.down && !p.gone).map(p => p.n);
+  const down = s.pins.length - left.length;
+  const clean = left.length === 0;
+  const points = down + (clean ? 10 + (s.split ? 10 : 0) : 0);
+  const r = {type:s.type, down, left:left.length, gutter: sim.ball.gutter && down === 0, points, clean, split:!!s.split};
+  game.results.push(r);
+  drawRack(left, s.pins.filter(n => !left.includes(n)));
+  let msg, sub = `+${points} pts`;
+  if(s.type === 'strike'){
+    if(clean) msg = 'STRIKE!';
+    else if(r.gutter) msg = 'GUTTER';
+    else { msg = `${down} PINS`; const lname = leaveName(left); if(lname) sub = `${lname} · +${points} pts`; }
+  } else msg = clean ? (s.split ? 'SPLIT PICKED!' : 'SPARE!') : (r.gutter ? 'GUTTER' : 'MISSED');
+  banner(msg, sub);
+  if(clean) crash(500);
+  game.phase = 'result'; updateSheet();
+  setTimeout(() => {
+    clearBanner();
+    game.idx++;
+    if(game.idx >= 10) endRun(); else setupShot();
+  }, 1700);
+}
+function leaveName(left){
+  const k = left.slice().sort((a,b) => a-b).join('-');
+  const named = {'7-10':'7-10 split','4-6-7-10':'Big four','6-7-10':'6-7-10 split','4-7-10':'4-7-10 split','2-7':'2-7 split','3-10':'3-10 split','4-9':'4-9 split','5-7':'5-7 split','5-10':'5-10 split','8-10':'8-10 split','4-6':'4-6 split','10':'Ringing 10','7':'7 pin','2-4-5-8':'Bucket'};
+  return named[k] || (left.length ? `Leave: ${k}` : '');
+}
+function endRun(){
+  game.phase = 'done'; game.sim = null; updateSheet();
+  $('hud').classList.add('hidden'); $('hint').classList.add('hidden'); $('speed').classList.remove('on');
+  const score = total(), max = game.ch.max;
+  const tiles = game.results.map(r => r.clean ? '🟩' : (r.type === 'strike' ? (r.down >= 7 ? '🟨' : '⬛') : (r.down ? '🟨' : '⬛'))).join('');
+  const strikes = game.results.filter(r => r.type === 'strike' && r.clean).length;
+  const spares = game.results.filter(r => r.type === 'spare' && r.clean).length;
+  if(game.mode === 'daily'){
+    const all = store.get('df_results', {});
+    all[game.dayKey] = {score, max, tiles, strikes, spares};
+    store.set('df_results', all);
+  }
+  showResults({score, max, tiles, strikes, spares, practice: game.mode !== 'daily'});
+}
+function stats(){
+  const all = store.get('df_results', {}), keys = Object.keys(all).sort();
+  const played = keys.length, best = played ? Math.max(...keys.map(k => all[k].score)) : 0;
+  const avg = played ? Math.round(keys.reduce((a, k) => a + all[k].score, 0) / played) : 0;
+  let streak = 0, d = todayKey();
+  if(!all[d]){ d = new Date(Date.parse(d + 'T12:00:00Z') - 864e5).toISOString().slice(0,10); }
+  while(all[d]){ streak++; d = new Date(Date.parse(d + 'T12:00:00Z') - 864e5).toISOString().slice(0,10); }
+  return `<div><b>${played}</b><small>PLAYED</small></div><div><b>${avg}</b><small>AVERAGE</small></div><div><b>${best}</b><small>BEST</small></div><div><b>${streak}</b><small>STREAK</small></div>`;
+}
+let lastShare = '';
+function showResults(r){
+  const num = dayIndex(game.dayKey || todayKey()) + 1;
+  $('resKicker').textContent = r.practice ? 'Practice lane' : `Daily Frame #${num}`;
+  $('resScore').innerHTML = `${r.score}<small> / ${r.max}</small>`;
+  $('resTiles').textContent = r.tiles;
+  $('resLine').textContent = `${r.strikes} of 4 strikes · ${r.spares} of 6 spares`;
+  $('resStats').innerHTML = stats();
+  $('resNext').textContent = r.practice ? '' : `Next challenge in ${untilMidnight()} (midnight Eastern)`;
+  $('shareBtn').classList.toggle('hidden', r.practice);
+  $('toast').textContent = '';
+  lastShare = `🎳 Daily Frame #${num}: ${r.score}/${r.max}\n${r.tiles}\n${r.strikes}/4 strikes · ${r.spares}/6 spares\n${SITE}`;
+  $('results').classList.remove('hidden');
+}
+function showHome(){
+  game.mode = 'home'; game.phase = 'idle'; game.sim = null;
+  const key = todayKey(), ch = makeChallenge(dayIndex(key) + 1);
+  game.ch = ch; game.rack = newRack(ALL); camZ = -60; game.ballX = 2;
+  $('homeKicker').textContent = `Challenge #${dayIndex(key) + 1}`;
+  $('homeOil').textContent = `${ch.oilFt} ft`;
+  $('homeCond').textContent = ch.cond;
+  $('homeNext').textContent = `in ${untilMidnight()}`;
+  const done = store.get('df_results', {})[key];
+  $('playBtn').textContent = done ? `Today's score: ${done.score}. See results` : "Bowl today's frame";
+  $('homeStats').innerHTML = stats();
+  $('hud').classList.add('hidden'); $('hint').classList.add('hidden'); $('results').classList.add('hidden');
+  $('home').classList.remove('hidden');
+}
+$('playBtn').addEventListener('click', () => {
+  const key = todayKey(), done = store.get('df_results', {})[key];
+  if(done){ game.dayKey = key; game.ch = makeChallenge(dayIndex(key) + 1); $('home').classList.add('hidden'); showResults({...done, practice:false}); }
+  else startRun('daily');
+});
+$('practiceBtn').addEventListener('click', () => startRun('practice'));
+$('practiceBtn2').addEventListener('click', () => startRun('practice'));
+$('homeBtn').addEventListener('click', showHome);
+$('shareBtn').addEventListener('click', async () => {
+  try{
+    if(navigator.share){ await navigator.share({text: lastShare}); return; }
+  }catch(e){ if(e && e.name === 'AbortError') return; }
+  try{ await navigator.clipboard.writeText(lastShare); $('toast').textContent = 'Copied. Paste it in your group chat or Facebook.'; }
+  catch(e){ $('toast').textContent = 'Could not copy. Take a screenshot instead.'; }
+});
+
+// =============== Input: drag sideways to line up, swipe up to roll ===============
+cv.addEventListener('pointerdown', e => {
+  if(game.phase !== 'aim') return;
+  audio();
+  game.swipe = {pts:[{x:e.clientX, y:e.clientY, t:performance.now()}], mode:'?', lastX:e.clientX, id:e.pointerId};
+  try{ cv.setPointerCapture(e.pointerId); }catch(err){}
+});
+cv.addEventListener('pointermove', e => {
+  const s = game.swipe; if(!s || game.phase !== 'aim' || e.pointerId !== s.id) return;
+  const p0 = s.pts[0], dx = e.clientX - p0.x, dy = e.clientY - p0.y;
+  if(s.mode === '?'){
+    if(dy < -24 && -dy > Math.abs(dx)*0.8) s.mode = 'throw';
+    else if(Math.abs(dx) > 10 && Math.abs(dx) > Math.abs(dy)) s.mode = 'move';
+  }
+  if(s.mode === 'move'){
+    // slide along the foul line; convert screen pixels to inches at the ball's distance
+    const pr = proj(0, BALL_R + 1);
+    game.ballX = Math.max(-LANE_HALF + BALL_R, Math.min(LANE_HALF - BALL_R, game.ballX + (e.clientX - s.lastX) / pr.s));
+    s.lastX = e.clientX;
+  } else {
+    s.pts.push({x:e.clientX, y:e.clientY, t:performance.now()});
+  }
+});
+function endSwipe(e){
+  const s = game.swipe; if(!s || e.pointerId !== s.id) return;
+  game.swipe = null;
+  if(game.phase !== 'aim' || s.mode !== 'throw') return;
+  s.pts.push({x:e.clientX, y:e.clientY, t:performance.now()});
+  const a = s.pts[0], b = s.pts[s.pts.length - 1];
+  const chordX = b.x - a.x, chordY = b.y - a.y, L = Math.hypot(chordX, chordY);
+  if(L < 60 || chordY > -40){ flashHint('Swipe <b>up</b> the lane to roll'); return; }
+  // direction: compare the swipe with the dashed guide line (straight down the ball's board).
+  // Swiping along the guide rolls straight; leaning left or right angles the ball that way.
+  const g0 = proj(game.ballX, 2), g1 = proj(game.ballX, 180);
+  const gx = g1.x - g0.x, gy = g1.y - g0.y, gl = Math.hypot(gx, gy);
+  const rel = Math.atan2((gx*chordY - gy*chordX) / gl, (gx*chordX + gy*chordY) / gl); // + = swipe leans right of guide
+  let angle = rel * 0.11;
+  angle = Math.max(-0.07, Math.min(0.07, angle));
+  // speed: how fast the last part of the swipe moved
+  const tEnd = b.t; let k = s.pts.length - 1; while(k > 0 && tEnd - s.pts[k].t < 110) k--;
+  const q = s.pts[k], dt = Math.max(16, tEnd - q.t), pxms = Math.hypot(b.x - q.x, b.y - q.y) / dt;
+  const mph = Math.max(12, Math.min(22, 12 + pxms * 4));
+  // hook: how much the swipe bowed away from a straight line
+  let dev = 0;
+  for(const p of s.pts){ const cr = (chordX*(p.y - a.y) - chordY*(p.x - a.x)) / L; if(Math.abs(cr) > Math.abs(dev)) dev = cr; }
+  const bow = dev / L;
+  const mag = Math.max(0, Math.min(1, (Math.abs(bow) - 0.015) / 0.09));
+  // a path bowed to the right hooks left (right-hander), bowed left hooks right (left-hander)
+  throwBall({x: game.ballX, angle, mph, spin: mag, hookDir: bow > 0 ? -1 : 1});
+}
+cv.addEventListener('pointerup', endSwipe);
+cv.addEventListener('pointercancel', e => { if(game.swipe && e.pointerId === game.swipe.id) game.swipe = null; });
+document.addEventListener('touchmove', e => { if(!e.target.closest('.screen')) e.preventDefault(); }, {passive:false});
+let hintTimer = 0;
+function flashHint(html){ const h = $('hint'); h.innerHTML = html; h.classList.remove('hidden'); clearTimeout(hintTimer); hintTimer = setTimeout(() => { h.innerHTML = '<b>Drag sideways</b> to line up · <b>Swipe up</b> to roll · <b>Curve the swipe</b> to hook'; }, 1800); }
+
+// =============== Loop ===============
+let last = performance.now(), crashCool = 0;
+function frame(now){
+  const dt = Math.min(0.05, (now - last) / 1000); last = now;
+  if(game.phase === 'aim'){ const bd = Math.round((LANE_HALF - game.ballX) / BOARD + 0.5); const t = `Board ${bd}`; if($('speed').textContent !== t) $('speed').textContent = t; }
+  if(game.phase === 'roll' && game.sim){
+    const n = Math.max(1, Math.round(dt * 240));
+    let hit = 0;
+    for(let i = 0; i < n; i++){ const ev = step(game.sim, 1/240); hit = Math.max(hit, ev.hit); }
+    crashCool -= dt; if(hit > 20 && crashCool <= 0){ crash(hit); crashCool = 0.05; }
+    const b = game.sim.ball;
+    if(b.z > HEAD_Z - 10 || !b.active) rollSound(false);
+    const target = Math.min(Math.max(b.z - 70, -60), 560);
+    camZ += (target - camZ) * Math.min(1, dt * 6);
+    if(game.sim.done) finishShot();
+  }
+  render();
+  requestAnimationFrame(frame);
+}
+window.addEventListener('resize', resize);
+document.addEventListener('visibilitychange', () => { if(document.hidden) rollSound(false); });
+resize(); showHome();
+requestAnimationFrame(frame);
+window.__df = {T, newSim, step, game, makeChallenge, runHeadless, todayKey, dayIndex, throwBall: tp => throwBall(tp), unproj, proj, get camZ(){ return camZ; }};
+})();
+</script>
+</body>
+</html>
