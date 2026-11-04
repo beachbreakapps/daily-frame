@@ -49,12 +49,12 @@ html,body{height:100%;background:var(--night);color:var(--cream);font-family:var
 .info .t em{font-style:normal;color:var(--neon)}
 .info .s{font-size:12px;color:var(--muted)}
 #rack{width:74px;height:66px;flex:none;background:rgba(20,17,15,.88);border:1.5px solid var(--line);border-radius:8px}
-#banner{position:fixed;left:0;right:0;top:38%;text-align:center;font-family:var(--display);font-size:clamp(36px,11vw,64px);color:var(--cream);text-shadow:0 4px 0 var(--neon),0 0 30px rgba(255,79,123,.55);pointer-events:none;opacity:0;transform:scale(.8);transition:opacity .2s,transform .25s}
+#banner{position:fixed;left:0;right:0;top:52%;text-align:center;font-family:var(--display);font-size:clamp(36px,11vw,64px);color:var(--cream);text-shadow:0 4px 0 var(--neon),0 6px 18px rgba(0,0,0,.85);pointer-events:none;opacity:0;transform:scale(.8);transition:opacity .2s,transform .25s}
 #banner.on{opacity:1;transform:scale(1)}
-#banner small{display:block;font-family:var(--body);font-weight:800;font-size:16px;text-shadow:none;color:var(--cream);margin-top:6px;letter-spacing:.04em}
+#banner small{display:block;font-family:var(--body);font-weight:800;font-size:16px;text-shadow:0 1px 3px #000,0 0 14px rgba(0,0,0,.9);color:var(--cream);margin-top:6px;letter-spacing:.04em}
 #hint{position:fixed;left:0;right:0;bottom:calc(env(safe-area-inset-bottom,0px) + 14px);text-align:center;font-size:13px;color:var(--cream);opacity:.85;pointer-events:none;padding:0 16px;text-shadow:0 1px 3px #000}
 #hint b{color:var(--neon)}
-#speed{position:fixed;right:max(12px,env(safe-area-inset-right,0px));bottom:calc(env(safe-area-inset-bottom,0px) + 44px);font-family:var(--mono);font-size:13px;color:var(--cream);background:rgba(20,17,15,.85);border:1px solid var(--line);border-radius:6px;padding:4px 8px;pointer-events:none;opacity:0;transition:opacity .2s}
+#speed{position:fixed;right:max(12px,env(safe-area-inset-right,0px));bottom:calc(env(safe-area-inset-bottom,0px) + 84px);font-family:var(--mono);font-size:13px;color:var(--cream);background:rgba(20,17,15,.85);border:1px solid var(--line);border-radius:6px;padding:4px 8px;pointer-events:none;opacity:0;transition:opacity .2s}
 #speed.on{opacity:1}
 .screen{position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;background:radial-gradient(120% 80% at 50% 0%,rgba(255,79,123,.16),transparent 60%),rgba(20,17,15,.975);padding:calc(env(safe-area-inset-top,0px) + 20px) max(20px,env(safe-area-inset-right,0px)) calc(env(safe-area-inset-bottom,0px) + 20px) max(20px,env(safe-area-inset-left,0px));overflow-y:auto;touch-action:pan-y}
 .card{width:100%;max-width:400px;display:flex;flex-direction:column;align-items:center;gap:16px;text-align:center}
@@ -302,16 +302,21 @@ function resize(){
   F = 1.12 * gw; CX = W/2; HOR = H*0.2;
   CAMH = (H*0.86 - HOR) * 62 / F;
 }
-function proj(x, z, y = 0){ const d = z - camZ; if(d < 4) return null; const s = F/d; return {x: CX + x*s, y: HOR + (CAMH - y)*s, s}; }
-function unproj(sx, sy){ const dy = Math.max(sy - HOR, 6); const d = CAMH*F/dy; return {x:(sx - CX)*d/F, z: camZ + d}; }
+// Shorter-looking lane: the stretch between the foul line and the pin deck is drawn at LANE_LOOK of its length.
+// Physics still uses the real 60 ft lane; only the picture is compressed. camZ is in picture units.
+const LANE_LOOK = 0.5, LOOK_END = 660;
+function vis(z){ return z <= 0 ? z : z <= LOOK_END ? z*LANE_LOOK : LOOK_END*LANE_LOOK + (z - LOOK_END); }
+function unvis(v){ return v <= 0 ? v : v <= LOOK_END*LANE_LOOK ? v/LANE_LOOK : LOOK_END + (v - LOOK_END*LANE_LOOK); }
+function proj(x, z, y = 0){ const d = vis(z) - camZ; if(d < 2) return null; const s = F/d; return {x: CX + x*s, y: HOR + (CAMH - y)*s, s}; }
+function unproj(sx, sy){ const dy = Math.max(sy - HOR, 6); const d = CAMH*F/dy; return {x:(sx - CX)*d/F, z: unvis(camZ + d)}; }
 function quad(x1, z1, x2, z2, color, y = 0){
-  const n = Math.max(z1, camZ + 6), f = Math.max(z2, n + 0.01);
+  const n = Math.max(z1, unvis(camZ + 4)), f = Math.max(z2, n + 0.01);
   const a = proj(x1, n, y), b = proj(x2, n, y), c = proj(x2, f, y), d = proj(x1, f, y);
   if(!a || !c) return;
   ctx.fillStyle = color; ctx.beginPath(); ctx.moveTo(a.x,a.y); ctx.lineTo(b.x,b.y); ctx.lineTo(c.x,c.y); ctx.lineTo(d.x,d.y); ctx.closePath(); ctx.fill();
 }
 function line3(x1, z1, x2, z2, color, w){
-  const n1 = Math.max(z1, camZ + 6), n2 = Math.max(z2, camZ + 6); if(n2 <= n1 && z2 > z1) return;
+  const n1 = Math.max(z1, unvis(camZ + 4)), n2 = Math.max(z2, unvis(camZ + 4)); if(n2 <= n1 && z2 > z1) return;
   const a = proj(x1, n1), b = proj(x2, n2); if(!a || !b) return;
   ctx.strokeStyle = color; ctx.lineWidth = w; ctx.beginPath(); ctx.moveTo(a.x,a.y); ctx.lineTo(b.x,b.y); ctx.stroke();
 }
@@ -696,7 +701,7 @@ function frame(now){
     crashCool -= dt; if(hit > 20 && crashCool <= 0){ crash(hit); crashCool = 0.05; }
     const b = game.sim.ball;
     if(b.z > HEAD_Z - 10 || !b.active) rollSound(false);
-    const target = Math.min(Math.max(b.z - 70, -60), 560);
+    const target = Math.min(Math.max(vis(b.z) - 70, -60), vis(HEAD_Z) - 160);
     camZ += (target - camZ) * Math.min(1, dt * 6);
     if(game.sim.done) finishShot();
   }
